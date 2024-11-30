@@ -8,7 +8,10 @@ from sqlalchemy import Integer, String
 from flask_login import UserMixin, login_user, LoginManager, login_required, current_user, logout_user
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'secret-key-goes-here'
+app.config['SECRET_KEY'] = 'fe5d9c78d488adcde2b4565fca1d4c86fba8c375245e0adcd7c0793e6bfd7fb2'
+
+
+
 
 # CREATE DATABASE
 
@@ -24,7 +27,7 @@ db.init_app(app)
 # CREATE TABLE IN DB
 
 
-class User(db.Model):
+class User(db.Model, UserMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     email: Mapped[str] = mapped_column(String(100), unique=True)
     password: Mapped[str] = mapped_column(String(100))
@@ -34,6 +37,11 @@ class User(db.Model):
 with app.app_context():
     db.create_all()
 
+login_manager = LoginManager()
+login_manager.init_app(app)
+@login_manager.user_loader
+def load_user(user_id):
+    return db.session.get(User, int(user_id))
 
 @app.route('/')
 def home():
@@ -54,8 +62,16 @@ def register():
     return render_template("register.html")
 
 
-@app.route('/login')
+@app.route('/login', methods=["GET", "POST"])
 def login():
+    if request.method == "POST":
+        input = db.session.execute(db.select(User).where(User.email == request.form.get("email")))
+        input_email = input.scalar()
+        if input_email and check_password_hash(input_email.password, request.form.get("password")):
+            login_user(input_email)
+            flash("Logged in successfully!", "success")
+        else:
+            flash("Invalid email or password. Please try again.", "danger")
     return render_template("login.html")
 
 
