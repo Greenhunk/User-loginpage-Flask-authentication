@@ -40,7 +40,7 @@ def load_user(user_id):
 
 @app.route('/')
 def home():
-    return render_template("index.html")
+    return render_template("index.html", logged_in=current_user.is_authenticated)
 
 
 @app.route('/register', methods= ["POST", "GET"])
@@ -59,7 +59,7 @@ def register():
             db.session.add(new_user)
             db.session.commit()
             return render_template("secrets.html", name = request.form.get("name"))
-    return render_template("register.html")
+    return render_template("register.html", logged_in=current_user.is_authenticated)
 
 
 @app.route('/login', methods=["GET", "POST"])
@@ -76,7 +76,7 @@ def login():
         else:
             flash("Invalid email. Please try again.", "danger")
 
-    return render_template("login.html")
+    return render_template("login.html", logged_in=current_user.is_authenticated)
 
 
 @app.route('/secrets')
