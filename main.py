@@ -10,15 +10,10 @@ from flask_login import UserMixin, login_user, LoginManager, login_required, cur
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'fe5d9c78d488adcde2b4565fca1d4c86fba8c375245e0adcd7c0793e6bfd7fb2'
 
-
-
-
 # CREATE DATABASE
-
 
 class Base(DeclarativeBase):
     pass
-
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 db = SQLAlchemy(model_class=Base)
@@ -56,9 +51,14 @@ def register():
             password = generate_password_hash(request.form.get("password"), method= "pbkdf2:sha256", salt_length=8),
             name = request.form.get("name"),
         )
-        db.session.add(new_user)
-        db.session.commit()
-        return render_template("secrets.html", name = request.form.get("name"))
+        input = db.session.execute(db.select(User).where(User.email == request.form.get("email")))
+        input_email = input.scalar()
+        if input_email:
+            flash("You have already signed up with that email. Log in instead.", "danger")
+        else:
+            db.session.add(new_user)
+            db.session.commit()
+            return render_template("secrets.html", name = request.form.get("name"))
     return render_template("register.html")
 
 
@@ -67,25 +67,31 @@ def login():
     if request.method == "POST":
         input = db.session.execute(db.select(User).where(User.email == request.form.get("email")))
         input_email = input.scalar()
-        if input_email and check_password_hash(input_email.password, request.form.get("password")):
-            login_user(input_email)
-            flash("Logged in successfully!", "success")
+        if input_email:
+            if check_password_hash(input_email.password, request.form.get("password")):
+                login_user(input_email)
+                flash("Logged in successfully!", "success")
+            else:
+                flash("Invalid password. Please try again.", "danger")
         else:
-            flash("Invalid email or password. Please try again.", "danger")
+            flash("Invalid email. Please try again.", "danger")
+
     return render_template("login.html")
 
 
 @app.route('/secrets')
+@login_required
 def secrets():
     return render_template("secrets.html")
 
 
 @app.route('/logout')
+@login_required
 def logout():
-    pass
-
+    logout_user()
 
 @app.route('/download')
+@login_required
 def download():
     return send_from_directory('static', 'files/cheat_sheet.pdf', as_attachment = True)
 
